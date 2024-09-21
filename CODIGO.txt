@@ -1,0 +1,389 @@
+#include <Wire.h>
+#include <RTClib.h>
+#include <Adafruit_GFX.h>   // libreria para pantallas graficas
+#include <Adafruit_SSD1306.h>   // libreria para controlador SSD1306
+
+
+
+RTC_DS1307 rtc;
+
+#define ANCHO 128     // reemplaza ocurrencia de ANCHO por 128
+#define ALTO 64       // reemplaza ocurrencia de ALTO por 64
+  
+#define OLED_RESET 4      // necesario por la libreria pero no usado
+Adafruit_SSD1306 oled(ANCHO, ALTO, &Wire, OLED_RESET);  // crea objeto
+
+
+// Definimos los pines a los que están conectados los interruptores
+const int interruptor1Pin = 2; // Pin para el primer interruptor
+const int interruptor2Pin = 3; // Pin para el segundo interruptor
+const int interruptor3Pin = 4; // Pin para el tercer interruptor
+const int bomba1=14;
+const int bomba2=15;
+int sensorpin1=A0; // DECLARACIÓN DE PIN ANALOGO
+int sensorpin2=A1;
+
+int aire= 1016; 
+int agua= 480;
+// Variable para almacenar el estado del primer interruptor
+int estadoInterruptor1 = 0;
+int estadoInterruptor2 = 0;
+int estadoInterruptor3 = 0;
+
+
+void setup() {
+  // Configuramos los pines de los interruptores como entradas
+  pinMode(interruptor1Pin, INPUT_PULLUP);
+  pinMode(interruptor2Pin, INPUT_PULLUP);
+  pinMode(interruptor3Pin, INPUT_PULLUP);
+  pinMode(bomba1,OUTPUT);
+  pinMode(bomba2,OUTPUT);
+  // Inicializamos la comunicación serial
+  Serial.begin(9600);
+
+  Wire.begin();
+  rtc.begin();
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+
+  oled.begin(SSD1306_SWITCHCAPVCC, 0x3C); // inicializa pantalla con direccion 0x3C  
+}
+
+void loop() {   
+  DateTime now = rtc.now();
+  int currentday = now.day();
+  int currenthour = now.hour();
+  int currentminute = now.minute();
+  int currentsecond = now.second();
+  int currentdayoftheweek= now.dayOfTheWeek();
+  int diaderriego;
+  
+  Serial.print(now.year(), DEC);
+  Serial.print('/');
+  Serial.print(now.month(), DEC);
+  Serial.print('/');
+  Serial.print(now.day(), DEC);
+  Serial.print(' ');
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.print(now.second(), DEC);
+  Serial.println();
+
+  
+   // Leemos el estado del primer interruptor
+   estadoInterruptor1 = digitalRead(interruptor1Pin);
+   estadoInterruptor2 = digitalRead(interruptor2Pin);
+   estadoInterruptor3 = digitalRead(interruptor3Pin);
+   
+   int variable1= analogRead(sensorpin1);           //LECTURA DEL VALOR DE HUMEDAD
+   int variable2= analogRead(sensorpin2);
+   int HUMEDAD1=map(variable1,aire, agua, 0, 100); // CARACTERIZACIÓN DE LOS VALORES CON LAS
+   int HUMEDAD2=map(variable2,aire, agua, 0, 100);
+ /*  
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: ");  // escribe en pantalla el texto
+  oled.setCursor (50, 0);    // ubica cursor en coordenas 10,30
+  oled.setTextSize(1);      // establece tamano de texto en 2
+  oled.print(HUMEDAD1);    // escribe valor de millis() dividido por 1000   
+  delay(1000);                                 
+  */
+   
+   //******************************************* Si el primer interruptor está activado entonces se ejecuta el riego cada 2 días******************************************************
+  if ((estadoInterruptor1 == LOW )&&(estadoInterruptor2 == HIGH)&&(estadoInterruptor3 == HIGH)){
+ 
+  if(HUMEDAD1<0){
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: 0%");  // escribe en pantalla el texto
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO         DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("2");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente  
+  delay(2000);
+    }
+    
+  else if(HUMEDAD1>100){
+    
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: 100%");  // escribe en pantalla el texto
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO         DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("2");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+  delay(2000);
+  }
+  
+  else if(HUMEDAD1 > 0 && HUMEDAD1 < 100){
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: ");  // escribe en pantalla el texto
+  oled.setCursor (50, 0);    // ubica cursor en coordenas 10,30
+  oled.setTextSize(1);      // establece tamano de texto en 2
+  oled.print(HUMEDAD1);    // escribe valor de millis() dividido por 1000   
+  oled.setCursor (57, 0);    // ubica cursor en coordenas 10,30
+  oled.setTextSize(1);      // establece tamano de texto en 2
+  oled.print(" % ");    // escribe valor de millis() dividido por 1000
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO         DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("2");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+  delay(2000);
+  }
+  
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO         DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("2");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente                                
+ 
+  for (int i = 0; i < 10; i++) {
+  DateTime now = rtc.now();
+  Serial.print(now.year(), DEC);
+  Serial.print('/');
+  Serial.print(now.month(), DEC);
+  Serial.print('/');
+  Serial.print(now.day(), DEC);
+  Serial.print(' ');
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.print(now.second(), DEC);
+  Serial.println();
+  
+      if (/*(currentday % 2 == 0) && */(currenthour == 16) && (currentminute == 34)) {
+    digitalWrite(bomba1, HIGH); // Enciende el LED
+    delay(5000); // Espera 2 segundos
+    digitalWrite(bomba1, LOW); // Apaga el LED
+  }
+  delay(1000); // Espera 1 segundo antes de verificar nuevamente
+       
+      Serial.println("Ejecutando bucle 1...");
+      
+      delay(500); // Esperar medio segundo
+    }
+  } 
+  //******************************************* Si el segundo interruptor está activado entonces se ejecuta el riego cada 7 días******************************************************
+  
+ if ((estadoInterruptor1 == HIGH )&&(estadoInterruptor2 == LOW)&&(estadoInterruptor3 == HIGH)) {
+
+  if(HUMEDAD1<0){
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: 0%");  // escribe en pantalla el texto
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO         DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("7");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+  delay(2000);
+    }
+    
+  else if(HUMEDAD1>100){
+    
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: 100%");  // escribe en pantalla el texto
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO         DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("7");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+  delay(2000);
+  }
+  
+  else if(HUMEDAD1 > 0 && HUMEDAD1 < 100){
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: ");  // escribe en pantalla el texto
+  oled.setCursor (50, 0);    // ubica cursor en coordenas 10,30
+  oled.setTextSize(1);      // establece tamano de texto en 2
+  oled.print(HUMEDAD1);    // escribe valor de millis() dividido por 1000   
+  oled.setCursor (57, 0);    // ubica cursor en coordenas 10,30
+  oled.setTextSize(1);      // establece tamano de texto en 2
+  oled.print(" % ");    // escribe valor de millis() dividido por 1000
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO         DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("7");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+  delay(2000);
+  }
+
+
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO         DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("7");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+    
+    // Ejecutar el segundo bucle
+    for (int i = 0; i < 5; i++) {
+      if((currentdayoftheweek == diaderriego && currentday % 7 == 0)&& (currenthour == 18) && (currentminute == 35))
+      {
+         digitalWrite(bomba1, HIGH); // Enciende el LED
+         delay(2000); // Espera 2 segundos
+         digitalWrite(bomba1, LOW); // Apaga el LED
+      }
+         delay(1000); // Espera 1 segundo antes de verificar nuevamente
+         Serial.println("Ejecutando bucle 2...");
+         delay(1000); // Esperar un segundo
+    }
+  }
+
+  //******************************************* Si el tercer interruptor está activado entonces se ejecuta el riego cada 14 días******************************************************
+  
+  
+  if ((estadoInterruptor3 == LOW )&&(estadoInterruptor2 == HIGH)&&(estadoInterruptor1 == HIGH)) {
+
+    if(HUMEDAD1<0){
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: 0%");  // escribe en pantalla el texto
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO          DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("14");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+  delay(2000);
+    }
+    
+  else if(HUMEDAD1>100){
+    
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: 100%");  // escribe en pantalla el texto
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO          DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("14");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+  delay(2000);
+  }
+  
+  else if(HUMEDAD1 > 0 && HUMEDAD1 < 100){
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: ");  // escribe en pantalla el texto
+  oled.setCursor (50, 0);    // ubica cursor en coordenas 10,30
+  oled.setTextSize(1);      // establece tamano de texto en 2
+  oled.print(HUMEDAD1);    // escribe valor de millis() dividido por 1000   
+  oled.setCursor (57, 0);    // ubica cursor en coordenas 10,30
+  oled.setTextSize(1);      // establece tamano de texto en 2
+  oled.print(" % ");    // escribe valor de millis() dividido por 1000
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO          DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("14");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente 
+  delay(2000);
+  }
+  
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 0);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("HUMEDAD: 0%");  // escribe en pantalla el texto
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(1);      // establece tamano de texto en 1
+  oled.print("RIEGO          DIAS");  // escribe en pantalla el texto
+  oled.setCursor(50, 20);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(3);      // establece tamano de texto en 2
+  oled.print("14");    // escribe valor de millis() dividido por 1000   
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente
+  
+    // Ejecutar el tercer bucle
+    for (int i = 0; i < 5; i++) {
+       int riegoInterval = 14;
+ DateTime lastRiego = rtc.now() - TimeSpan(riegoInterval, 0, 0, 0);
+
+  // Comprueba si se debe activar el riego
+   if (now >= lastRiego && currenthour == 18 && currentminute == 35 ) {
+    digitalWrite(bomba1, HIGH); // Enciende el LED
+    delay(2000); // Espera 2 segundos
+    digitalWrite(bomba1, LOW); // Apaga el LED
+  }
+  delay(1000); // Espera 1 segundo antes de verificar nuevamente
+      Serial.println("Ejecutando bucle 3..."); 
+      delay(1000); // Esperar un segundo
+    }
+    
+  }
+  
+  //if ( estadoInterruptor1 == LOW && estadoInterruptor2 == LOW && estadoInterruptor3 == LOW) {
+  
+    // Ejecutar el segundo bucle
+    for (int i = 0; i < 3; i++) {
+      
+  oled.clearDisplay();      // limpia pantalla
+  oled.setTextColor(WHITE);   // establece color al unico disponible (pantalla monocromo)
+  oled.setCursor(0, 30);     // ubica cursor en inicio de coordenadas 0,0
+  oled.setTextSize(2);      // establece tamano de texto en 1
+  oled.print("BIENVENIDO");  // escribe en pantalla el texto
+  oled.display();     // muestra en pantalla todo lo establecido anteriormente     
+   delay(1000); 
+    }
+  //}
+  resetearPantalla();
+  delay(1000);
+}
+
+void resetearPantalla() {
+  // Reinicia la pantalla OLED
+  oled.clearDisplay();
+  oled.display();  // Fuerza un reset al buffer
+  oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // Reinicia la pantalla
+  oled.display();  // Vuelve a mostrar el buffer inicial si es necesario
+}
